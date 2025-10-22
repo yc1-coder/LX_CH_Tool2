@@ -39,7 +39,6 @@ for rule in table_header_3:
                 matched_columns.append(col)
         except re.error as e:
             print(f"正则表达式错误 {rule}: {e}")
-
     # 如果有匹配的列，则提取这些列的数据
     if matched_columns:
         classified_data[rule] = df[matched_columns]
@@ -58,4 +57,22 @@ for i, rule in enumerate(table_header_3):
         # 保存数据
         combined_data.to_csv(filename, index=False)
         print(f"已保存: {filename}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,8 +1,11 @@
 import pandas as pd
 import dash
+import glob
+import os
 from dash import dcc,html,Dash,Input,Output
 import plotly.graph_objects as go
 from collections import Counter
+
 
 
 
@@ -95,14 +98,14 @@ class DataVisual:
                             show_in_legend = True
 
                         fig.add_trace(go.Scatter(
-                            x=x_axis_labels,  # X轴数据
-                            y=row[2:].values,  # Y轴数据
-                            mode='lines+markers',  # 显示线条和标记
-                            name=legend_name,  # 图例名称
-                            legendgroup=config,  # 将相同config归为一组
-                            showlegend=show_in_legend,  # 控制是否在图例中显示
-                            line=dict(width=2, color=config_colors[config]),  # 显式设置颜色
-                            marker=dict(size=6, color=config_colors[config])  # 显式设置颜色
+                            x=x_axis_labels,                                                                    # X轴数据
+                            y=row[2:].values,                                                                    # Y轴数据
+                            mode='lines+markers',                                                           # 显示线条和标记
+                            name=legend_name,                                                               # 图例名称
+                            legendgroup=config,                                                               # 将相同config归为一组
+                            showlegend=show_in_legend,                                                  # 控制是否在图例中显示
+                            line=dict(width=2, color=config_colors[config]),                     # 显式设置颜色
+                            marker=dict(size=6, color=config_colors[config])                   # 显式设置颜色
                         ))
 
         # 4. 设置图表布局
@@ -110,9 +113,12 @@ class DataVisual:
             title=dict(text="EIRP-NB", x=0.5, xanchor='center'),
             xaxis_title="Channel",
             yaxis_title="测试值",
-            template="plotly_white"
+            template="plotly_white",
+        # 添加动态Y轴范围设置(没变)
+            yaxis = dict(
+                autorange=True  # 自动调整Y轴范围
         )
-
+        )
         return fig
 
     def format_column_names(self, columns):    #格式化数据表头，提取画图的坐标信息
@@ -130,6 +136,12 @@ class DataVisual:
                     channel_part = [p for p in parts if 'channel=' in p][0]
                     channel_value = channel_part.split('=')[1]
                     formatted.append(f"Channel {channel_value}")
+                # 提取freq的值
+                elif 'freq=' in str(col):
+                    freq_part = [p for p in parts if 'freq=' in p][0]
+                    freq_value = freq_part.split('=')[1]
+                    formatted.append(f"freq {freq_value}")
+
                 else:
                     formatted.append(parts[-2])  # 提取最后一个部分
             else:
@@ -140,17 +152,30 @@ class DataVisual:
 
 
 def create_dash_app():
-    processor = SiteProcess("extracted_data/EIRP-NB.csv")
-    processor.process_site()
-
-    visual = DataVisual(processor)
+    #获取文件夹下所有CSV文件
+    csv_files = glob.glob("extracted_data/*.csv")
+    # 为每个文件创建图表
+    graphs = []
+    for file_path in csv_files:
+        try:
+            # 处理每个CSV文件
+            processor = SiteProcess(file_path)
+            processor.process_site()
+            visual = DataVisual(processor)
+            fig = visual.draw_chart()
+            # 添加文件名作为标题
+            file_name = os.path.basename(file_path)
+            graphs.extend([
+                html.H2(file_name, style={"text-align": "center", "margin-top": "30px"}),
+                dcc.Graph(figure=fig)
+            ])
+        except Exception as e:
+            print(f"处理文件 {file_path} 时出错: {e}")
 
     app = Dash(__name__)
-    fig = visual.draw_chart()
+
     app.layout = html.Div([
-        html.H1("CH_Tool_Setting",style={"text-align": "center"}),
-        dcc.Graph(figure=fig),
-    ])
+        html.H1("CH_Tool_Setting",style={"text-align": "center"}),] + graphs)
     return app
 
 

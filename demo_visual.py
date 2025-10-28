@@ -4,10 +4,6 @@ import glob
 import os
 from dash import dcc,html,Dash,Input,Output
 import plotly.graph_objects as go
-from collections import Counter
-
-
-
 
 class  SiteProcess:                                                       #前15列是固定数据，封装
     def __init__ (self,file_path):
@@ -58,7 +54,7 @@ class DataVisual:
                 config_counts = {}
                 for index, row in plot_data.iterrows():
                     if not row[2:].isnull().any():
-                        config = row[1]
+                        config = row.iloc[1]
                         if config not in config_counts:
                             config_counts[config] = 0
                         config_counts[config] += 1
@@ -77,8 +73,8 @@ class DataVisual:
                 # 为每一行数据创建一条线
                 for index, row in plot_data.iterrows():
                     if not row[2:].isnull().any():
-                        sn = row[0]
-                        config = row[1]
+                        sn = row.iloc[0]
+                        config = row.iloc[1]
 
                         # 为config分配颜色
                         if config not in config_colors:
@@ -110,15 +106,15 @@ class DataVisual:
 
         # 4. 设置图表布局
         fig.update_layout(
-            title=dict(text="EIRP-NB", x=0.5, xanchor='center'),
+            title=dict(
+                        text="EIRP-NB",
+                       x=0.5, xanchor='center'),
             xaxis_title="Channel",
             yaxis_title="测试值",
             template="plotly_white",
-        # 添加动态Y轴范围设置(没变)
-            yaxis = dict(
-                autorange=True  # 自动调整Y轴范围
         )
-        )
+        #5.自动调整y轴范围
+
         return fig
 
     def format_column_names(self, columns):    #格式化数据表头，提取画图的坐标信息
@@ -140,13 +136,16 @@ class DataVisual:
                 elif 'freq=' in str(col):
                     freq_part = [p for p in parts if 'freq=' in p][0]
                     freq_value = freq_part.split('=')[1]
-                    formatted.append(f"freq {freq_value}")
-
+                    # 控制小数点范围 - 保留2位小数
+                    try:
+                        freq_num = float(freq_value)
+                        formatted.append(f"freq {freq_num:.2f}")  # 确保freq和数值之间有空格
+                    except ValueError:
+                        formatted.append(f"freq {freq_value}")  # 这里也添加空格
                 else:
                     formatted.append(parts[-2])  # 提取最后一个部分
             else:
                 formatted.append(str(col))
-
         return formatted
 
 

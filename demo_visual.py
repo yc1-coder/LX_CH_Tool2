@@ -2,6 +2,7 @@ import pandas as pd
 import dash
 import glob
 import os
+import re
 from dash import dcc,html,Dash,Input,Output
 import plotly.graph_objects as go
 
@@ -112,9 +113,12 @@ class DataVisual:
             xaxis_title="Channel",
             yaxis_title="测试值",
             template="plotly_white",
-        )
-        #5.自动调整y轴范围
 
+            yaxis = dict(
+                autorange = True,  #自动调整范围
+                automargin = True,  #自动边距
+            )
+        )
         return fig
 
     def format_column_names(self, columns):    #格式化数据表头，提取画图的坐标信息
@@ -135,13 +139,23 @@ class DataVisual:
                 # 提取freq的值
                 elif 'freq=' in str(col):
                     freq_part = [p for p in parts if 'freq=' in p][0]
-                    freq_value = freq_part.split('=')[1]
-                    # 控制小数点范围 - 保留2位小数
-                    try:
-                        freq_num = float(freq_value)
-                        formatted.append(f"freq {freq_num:.2f}")  # 确保freq和数值之间有空格
-                    except ValueError:
-                        formatted.append(f"freq {freq_value}")  # 这里也添加空格
+                    #使用正则表达式匹配频率值和可选单位
+                    match = re.search(r'freq=([\d.]+)([A-Za-z]*)',freq_part)
+                    if match:
+                        freq_value = float(match.group(1))
+                        unit = match.group(2)                   #可能为空字符串
+                        if unit: #如果有单位
+                            formatted.append(f"freq {freq_value:.2f}{unit}")
+                        else:    #如果没有单位
+                            formatted.append(f"freq {freq_value:.2f}")
+                    else:
+                        freq_value = freq_part.split('=')[1]
+                        # 控制小数点范围 - 保留2位小数
+                        try:
+                            freq_num = float(freq_value)
+                            formatted.append(f"freq {freq_num:.2f}")  # 确保freq和数值之间有空格
+                        except ValueError:
+                            formatted.append(f"freq {freq_value}")  # 这里也添加空格
                 else:
                     formatted.append(parts[-2])  # 提取最后一个部分
             else:

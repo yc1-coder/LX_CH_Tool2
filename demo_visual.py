@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import dash
 import glob
 import os
@@ -6,29 +7,38 @@ import re
 from dash import dcc,html,Dash,Input,Output
 import plotly.graph_objects as go
 
+
+
 class  SiteProcess:                                                       #前15列是固定数据，封装
     def __init__ (self,file_path):
         self.df = pd.read_csv(file_path)
         self.header = []
         self.serial_number = None                                   #提取df中的SerialNumber
         self.config = None                                               #提取df中的BUILD_MATRIX_CONFIG
+        self.upper_limit_row = None                               #带上限数据行
+        self.lower_limit_row =  None                              #带下限数据行
+
     def process_site(self):
         self.header = {'serial_header':'SerialNumber','config_header':'BUILD_MATRIX_CONFIG'}    #列名本身就是表头
         self.serial_number = self.df.iloc[:,2]
         self.config = self.df.iloc[:,12]
 
+        try:
+            self.upper_limit_row = self.df.iloc[2, 15:]         # 从第15列开始的上限数据
+            self.lower_limit_row = self.df.iloc[3, 15:]         # 从第15列开始的下限数据
+        except:
+            self.upper_limit_row = None
+            self.lower_limit_row = None
 
 class DataVisual:
     def __init__(self,process):
         self.df = process.df
         self.column_names = self.df.columns.tolist()                                #直接提取列名，将列名转换为Python列表
-
     def load_data(self):
         y_data = self.df.iloc[5:,15:]                                                           #获取数据
         raw_columns = self.df.columns[15:]                                               #提取并格式化测试项列名
         self.test_columns = self.format_column_names(raw_columns)     #格式化后的列名作为X轴
         return y_data,self.test_columns                                                  #返回值
-
     def create_plot_data(self):                                                             #数据拼接（Sn,config,data）
         y_data, test_columns = self.load_data()
         serial_number = self.df.iloc[:, 2]
@@ -36,19 +46,43 @@ class DataVisual:
         create_dataframe = pd.concat([serial_number,config_data,y_data],axis=1)   #axis=1,沿着行方向拼接
         return create_dataframe
 
+
+
     def draw_chart(self):
         # 1. 数据准备
         plot_data = self.create_plot_data()
         x_axis_labels = self.test_columns
+        #获取上下限数据系列（作为参考线）
+        upper_limit_data = self.df.iloc[2, 15:] if self.df.shape[0] > 2 else None
+        lower_limit_data = self.df.iloc[3, 15:] if self.df.shape[0] > 3 else None
 
         # 2. 创建图表对象
         fig = go.Figure()
 
-        # 3. 添加数据系列
+        # 3. 添加上下限数据系列（作为参考线）
+        if upper_limit_data is not None:
+            fig.add_trace(go.Scatter(
+                x=x_axis_labels,
+                y=upper_limit_data.values,
+                mode='lines',
+                name='上限',
+                line=dict(color='red', width=2, dash='dash'),
+                showlegend = False
+            ))
+
+        if lower_limit_data is not None:
+            fig.add_trace(go.Scatter(
+                x=x_axis_labels,
+                y=lower_limit_data.values,
+                mode='lines',
+                name='下限',
+                line=dict(color='red', width=2, dash='dash'),
+                showlegend = False
+            ))
+        # 4. 添加数据系列
         if len(plot_data) > 0 and len(x_axis_labels) > 0:
             # 获取Y数据列（从第3列开始，跳过SN和Config）
             y_columns = plot_data.columns[2:]
-
             # 确保数据维度匹配
             if len(x_axis_labels) == len(y_columns):
                 # 统计每个config出现的次数
@@ -59,18 +93,14 @@ class DataVisual:
                         if config not in config_counts:
                             config_counts[config] = 0
                         config_counts[config] += 1
-
                 # 记录每个config是否已在图例中显示
                 config_shown = {}
-
                 # 为不同config分配颜色
                 config_colors = {}
                 color_palette = [
                     '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-                    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-                ]
+                    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
                 color_index = 0
-
                 # 为每一行数据创建一条线
                 for index, row in plot_data.iterrows():
                     if not row[2:].isnull().any():
@@ -105,19 +135,18 @@ class DataVisual:
                             marker=dict(size=6, color=config_colors[config])                   # 显式设置颜色
                         ))
 
-        # 4. 设置图表布局
+        # 5. 设置图表布局
         fig.update_layout(
-            title=dict(
-                        text="EIRP-NB",
-                       x=0.5, xanchor='center'),
+            title=dict(text="EIRP-NB",x=0.5, xanchor='center'),
             xaxis_title="Channel",
             yaxis_title="测试值",
             template="plotly_white",
-
             yaxis = dict(
-                autorange = True,  #自动调整范围
-                automargin = True,  #自动边距
-            )
+                autorange = True,            #自动调整范围
+                automargin = True,          #自动边距
+                dtick = 1,                     #设置Y轴刻度间隔为1
+                tickmode = 'linear',         #使用线性刻度模式
+                )
         )
         return fig
 
@@ -140,7 +169,7 @@ class DataVisual:
                 elif 'freq=' in str(col):
                     freq_part = [p for p in parts if 'freq=' in p][0]
                     #使用正则表达式匹配频率值和可选单位
-                    match = re.search(r'freq=([\d.]+)([A-Za-z]*)',freq_part)
+                    match = re.search(r"freq=([\d.]+)([A-Za-z]*)",freq_part)
                     if match:
                         freq_value = float(match.group(1))
                         unit = match.group(2)                   #可能为空字符串
@@ -161,8 +190,6 @@ class DataVisual:
             else:
                 formatted.append(str(col))
         return formatted
-
-
 
 def create_dash_app():
     #获取文件夹下所有CSV文件

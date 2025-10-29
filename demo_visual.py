@@ -8,7 +8,6 @@ from dash import dcc,html,Dash,Input,Output
 import plotly.graph_objects as go
 
 
-
 class  SiteProcess:                                                       #前15列是固定数据，封装
     def __init__ (self,file_path):
         self.df = pd.read_csv(file_path)
@@ -31,8 +30,9 @@ class  SiteProcess:                                                       #前15
             self.lower_limit_row = None
 
 class DataVisual:
-    def __init__(self,process):
+    def __init__(self,process,file_path):
         self.df = process.df
+        self.file_path = file_path
         self.column_names = self.df.columns.tolist()                                #直接提取列名，将列名转换为Python列表
     def load_data(self):
         y_data = self.df.iloc[5:,15:]                                                           #获取数据
@@ -45,8 +45,6 @@ class DataVisual:
         config_data = self.df.iloc[:,12]
         create_dataframe = pd.concat([serial_number,config_data,y_data],axis=1)   #axis=1,沿着行方向拼接
         return create_dataframe
-
-
 
     def draw_chart(self):
         # 1. 数据准备
@@ -124,6 +122,7 @@ class DataVisual:
                             config_shown[config] = True
                             show_in_legend = True
 
+
                         fig.add_trace(go.Scatter(
                             x=x_axis_labels,                                                                    # X轴数据
                             y=row[2:].values,                                                                    # Y轴数据
@@ -132,21 +131,38 @@ class DataVisual:
                             legendgroup=config,                                                               # 将相同config归为一组
                             showlegend=show_in_legend,                                                  # 控制是否在图例中显示
                             line=dict(width=2, color=config_colors[config]),                     # 显式设置颜色
-                            marker=dict(size=6, color=config_colors[config])                   # 显式设置颜色
+                            marker=dict(size=6, color=config_colors[config]),
+                            hovertemplate=
+                            "<b>SN</b>: %{meta[0]}<br>" +
+                            "<b>Config</b>: %{meta[1]}<br>" +
+                            "<b>Band</b>: %{x}<br>" +
+                            "<b>Value</b>: %{y}<br>" +
+                            "<extra></extra>",  # 移除额外的trace名称
+                            meta=[sn, config]  # 传递额外信息
                         ))
 
         # 5. 设置图表布局
         fig.update_layout(
-            title=dict(text="EIRP-NB",x=0.5, xanchor='center'),
-            xaxis_title="Channel",
-            yaxis_title="测试值",
+            title=dict(
+                        text=os.path.splitext(os.path.basename(self.file_path))[0],#去掉csv扩展
+                        x=0.5,
+                        xanchor='center',
+                        font=dict(
+                            size=22,  # 字体大小
+                            color='black',  # 字体颜色
+                            family='Times New Roman',  # 字体
+                            weight = 'bold',                    #字体加粗
+                        )
+            ),
+            # xaxis_title="Channel",        #横坐标信息
+            # yaxis_title="测试值",           #纵坐标信息
             template="plotly_white",
             yaxis = dict(
                 autorange = True,            #自动调整范围
                 automargin = True,          #自动边距
-                dtick = 1,                     #设置Y轴刻度间隔为1
-                tickmode = 'linear',         #使用线性刻度模式
-                )
+                # dtick = 1,                     #设置Y轴刻度间隔为1
+                # tickmode = 'linear',     #使用线性刻度模式
+                ),
         )
         return fig
 
@@ -201,13 +217,16 @@ def create_dash_app():
             # 处理每个CSV文件
             processor = SiteProcess(file_path)
             processor.process_site()
-            visual = DataVisual(processor)
+            visual = DataVisual(processor,file_path)
             fig = visual.draw_chart()
             # 添加文件名作为标题
-            file_name = os.path.basename(file_path)
+            # file_name = os.path.basename(file_path)
             graphs.extend([
-                html.H2(file_name, style={"text-align": "center", "margin-top": "30px"}),
-                dcc.Graph(figure=fig)
+                html.H2(
+                        # file_name,
+                        style={"text-align": "center", "margin-top": "30px"}),
+                dcc.Graph(figure=fig,)
+
             ])
         except Exception as e:
             print(f"处理文件 {file_path} 时出错: {e}")
@@ -215,7 +234,7 @@ def create_dash_app():
     app = Dash(__name__)
 
     app.layout = html.Div([
-        html.H1("CH_Tool_Setting",style={"text-align": "center"}),] + graphs)
+        html.H1("CH_Tool_Setting",style={"text-align": "center"}),] + graphs,)
     return app
 
 

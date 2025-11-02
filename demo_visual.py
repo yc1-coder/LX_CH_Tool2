@@ -33,12 +33,12 @@ class DataVisual:
     def __init__(self,process,file_path):
         self.df = process.df
         self.file_path = file_path
-        self.column_names = self.df.columns.tolist()                                #直接提取列名，将列名转换为Python列表
+        self.column_names = self.df.columns.tolist()                                  #直接提取列名，将列名转换为Python列表
     def load_data(self):
         y_data = self.df.iloc[5:,15:]                                                           #获取数据
         raw_columns = self.df.columns[15:]                                               #提取并格式化测试项列名
-        self.test_columns = self.format_column_names(raw_columns)     #格式化后的列名作为X轴
-        return y_data,self.test_columns                                                  #返回值
+        self.test_columns = self.format_column_names(raw_columns)        #格式化后的列名作为X轴
+        return y_data,self.test_columns                                                   #返回值
     def create_plot_data(self):                                                             #数据拼接（Sn,config,data）
         y_data, test_columns = self.load_data()
         serial_number = self.df.iloc[:, 2]
@@ -130,15 +130,15 @@ class DataVisual:
                             name=legend_name,                                                               # 图例名称
                             legendgroup=config,                                                               # 将相同config归为一组
                             showlegend=show_in_legend,                                                  # 控制是否在图例中显示
-                            line=dict(width=2, color=config_colors[config]),                     # 显式设置颜色
+                            line=dict(width=2, color=config_colors[config]),                       # 显式设置颜色
                             marker=dict(size=6, color=config_colors[config]),
                             hovertemplate=
                             "<b>SN</b>: %{meta[0]}<br>" +
                             "<b>Config</b>: %{meta[1]}<br>" +
                             "<b>Band</b>: %{x}<br>" +
                             "<b>Value</b>: %{y}<br>" +
-                            "<extra></extra>",  # 移除额外的trace名称
-                            meta=[sn, config]  # 传递额外信息
+                            "<extra></extra>",                                                                  # 移除额外的trace名称
+                            meta=[sn, config]                                                                   # 传递额外信息
                         ))
 
         # 5. 设置图表布局
@@ -160,9 +160,9 @@ class DataVisual:
             yaxis = dict(
                 autorange = True,            #自动调整范围
                 automargin = True,          #自动边距
-                # dtick = 1,                     #设置Y轴刻度间隔为1
-                # tickmode = 'linear',     #使用线性刻度模式
                 ),
+            #dragmode='zoom',  # 启用缩放和拖拽
+
         )
         return fig
 
@@ -225,14 +225,16 @@ def create_dash_app():
                 html.H2(
                         # file_name,
                         style={"text-align": "center", "margin-top": "30px"}),
-                dcc.Graph(figure=fig,)
+                dcc.Graph(figure=fig,
+                                config={
+                                    'scrollZoom':True, # 启用滚动缩放
+                                    'displayModeBar':True,
+                                })
 
             ])
         except Exception as e:
             print(f"处理文件 {file_path} 时出错: {e}")
-
     app = Dash(__name__)
-
     app.layout = html.Div([
         html.H1("CH_Tool_Setting",style={"text-align": "center"}),] + graphs,)
     return app

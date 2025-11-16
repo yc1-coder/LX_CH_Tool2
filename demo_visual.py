@@ -161,7 +161,6 @@ class DataVisual:
                 autorange = True,            #自动调整范围
                 automargin = True,          #自动边距
                 ),
-            #dragmode='zoom',  # 启用缩放和拖拽
 
         )
         return fig
@@ -236,7 +235,7 @@ def create_dash_app():
             print(f"处理文件 {file_path} 时出错: {e}")
     app = Dash(__name__)
     app.layout = html.Div([
-        html.H1("CH_Tool_Setting",style={"text-align": "center"}),] + graphs,)
+        html.H1("T11_P1_Station",style={"text-align": "center"}),] + graphs,)
     return app
 
 

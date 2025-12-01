@@ -122,7 +122,6 @@ class DataVisual:
                             config_shown[config] = True
                             show_in_legend = True
 
-
                         fig.add_trace(go.Scatter(
                             x=x_axis_labels,                                                                    # X轴数据
                             y=row[2:].values,                                                                    # Y轴数据
@@ -228,7 +227,7 @@ def create_dash_app():
                 dcc.Graph(figure=fig,
                                 config={
                                     'scrollZoom':True, # 启用滚动缩放
-                                    'displayModeBar':True,
+                                    'displayModeBar':True, # 显式设置为False来隐藏工具栏
                                 })
 
             ])
@@ -236,7 +235,7 @@ def create_dash_app():
             print(f"处理文件 {file_path} 时出错: {e}")
     app = Dash(__name__)
     app.layout = html.Div([
-        html.H1("CH_Tool_Setting",style={"text-align": "center"}),] + graphs,)
+        html.H1("T11_Station_Number",style={"text-align": "center"}),] + graphs,)
     return app
 
 
